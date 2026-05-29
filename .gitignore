@@ -23,3 +23,4 @@ Image.lzo
 *.log
 *~
 .DS_Store
+/.antigravitycli/

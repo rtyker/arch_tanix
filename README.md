@@ -163,3 +163,10 @@ sudo pacman -S --needed fakeroot mtools e2fsprogs parted dosfstools
 > Os binários `mkimage` e `lzop` também podem ser obtidos sem instalar nada no
 > sistema: baixe os pacotes com `pacman -Sp <pkg>` e extraia só `usr/bin/` com
 > `tar`, apontando o `PATH` para a pasta resultante (ver `toolbin/`).
+
+## Failsafe Ultra-Rápido Alternativo (BusyBox em RAM)
+
+Para testes rápidos ou diagnóstico de hardware de baixo nível, existe o subprojeto **[Tiny Failsafe](file:///mnt/hdauxiliar/arch_tanix/tiny-failsafe/README.md)** na pasta `tiny-failsafe/`.
+
+Ele compila o kernel de forma monolítica com o BusyBox embutido em `initramfs`, gerando um boot de menos de 5 segundos que roda 100% na memória RAM a partir de uma única partição FAT32 de 32MB. Veja os detalhes em [tiny-failsafe/README.md](file:///mnt/hdauxiliar/arch_tanix/tiny-failsafe/README.md).
+

@@ -15,6 +15,10 @@ FLAVOR="${FLAVOR:-minimal}"             # minimal | video | lxqt (config/flavors
 IMG_SIZE_MB="${IMG_SIZE_MB:-4096}"
 BOOT_MB=256
 ROOTFS_TAR="$BUILD/ArchLinuxARM-aarch64-latest.tar.gz"
+# PREINSTALL=1: instala os pacotes do flavor JA no build (qemu-aarch64 + chroot),
+# em vez de no 1o boot. Boot fica rapido e dispensa Ethernet no 1o boot.
+PREINSTALL="${PREINSTALL:-1}"
+NOFIRSTBOOT=0; [ -f "$ROOT/config/flavors/$FLAVOR.nofirstboot" ] && NOFIRSTBOOT=1
 
 [ "$(id -u)" -eq 0 ] || { echo "rode como root (sudo)"; exit 1; }
 [ -f "$OUT/KERNEL" ]   || { echo "FALTA out/KERNEL (rode 02-package-kernel.sh)"; exit 1; }
@@ -53,11 +57,19 @@ echo ">> root UUID: $ROOTUUID"
 
 MNT="$(mktemp -d)"
 mount "${LO}p2" "$MNT"
-mkdir -p "$MNT/boot"
-mount "${LO}p1" "$MNT/boot"
 
 echo ">> extraindo rootfs ArchLinuxARM"
 tar -xpf "$ROOTFS_TAR" -C "$MNT"
+
+# Descarta o /boot generico do tarball (kernel/initramfs/dtbs do ArchLinuxARM —
+# usamos os NOSSOS). Tambem evita ENOSPC: esse /boot tem ~350MB (initramfs+dtbs)
+# e nao caberia na FAT de ${BOOT_MB}MB se ela ja estivesse montada aqui.
+echo ">> descartando /boot generico do tarball"
+rm -rf "$MNT"/boot/*
+
+# So agora monta a particao FAT de boot (vazia) para receber o nosso KERNEL.
+mkdir -p "$MNT/boot"
+mount "${LO}p1" "$MNT/boot"
 
 echo ">> instalando modulos do kernel (descartando os do kernel de fabrica)"
 rm -rf "$MNT"/usr/lib/modules/* 2>/dev/null || true
@@ -90,6 +102,59 @@ EOF
 
 echo ">> aplicando flavor"
 "$ROOT/scripts/lib/apply-flavor.sh" "$MNT" "$FLAVOR" "$ROOT"
+
+# ---------------------------------------------------------------------------
+# Pre-instalacao dos pacotes do flavor no proprio rootfs (qemu-aarch64 + chroot),
+# em vez de deixar para o tx9-firstboot no 1o boot. Cria o stamp do firstboot
+# para ele NAO repetir no boot real -> boot rapido e sem rede obrigatoria.
+# ---------------------------------------------------------------------------
+if [ "$NOFIRSTBOOT" != 1 ] && [ "$PREINSTALL" = 1 ]; then
+  echo ">> pre-instalando pacotes do flavor (qemu-aarch64 + chroot)"
+  command -v qemu-aarch64-static >/dev/null || { echo "FALTA qemu-aarch64-static (pacman -S qemu-user-static)"; exit 1; }
+  command -v arch-chroot       >/dev/null || { echo "FALTA arch-chroot (pacman -S arch-install-scripts)"; exit 1; }
+
+  # binfmt do aarch64 com flag F (fix binary: funciona dentro do chroot)
+  if [ ! -e /proc/sys/fs/binfmt_misc/qemu-aarch64 ]; then
+    echo "   registrando binfmt qemu-aarch64 (flag F)"
+    printf '%s\n' ':qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-aarch64-static:F' \
+      > /proc/sys/fs/binfmt_misc/register
+  fi
+
+  # DNS dentro do chroot (substitui temporariamente o symlink do resolved)
+  rm -f "$MNT/etc/resolv.conf"; cp -L /etc/resolv.conf "$MNT/etc/resolv.conf"
+
+  arch-chroot "$MNT" /bin/bash -euo pipefail <<'CHROOT'
+echo ">>> [chroot] pacman-key --init/--populate"
+pacman-key --init
+pacman-key --populate archlinuxarm
+mapfile -t PKGS < <(awk 'NF && $1 !~ /^#/ {print $1}' /etc/tx9/flavor.pkgs)
+echo ">>> [chroot] instalando ${#PKGS[@]} pacotes: ${PKGS[*]}"
+pacman -Syu --noconfirm --needed "${PKGS[@]}"
+echo ">>> [chroot] locale-gen"
+locale-gen
+echo ">>> [chroot] habilitando unidades do flavor"
+if [ -f /etc/tx9/flavor.enable ]; then
+  while read -r u _; do
+    [ -z "$u" ] && continue; case "$u" in \#*) continue ;; esac
+    systemctl enable "$u" || true
+  done < /etc/tx9/flavor.enable
+fi
+if [ -f /etc/tx9/flavor.target ]; then
+  t="$(head -n1 /etc/tx9/flavor.target)"; [ -n "$t" ] && systemctl set-default "$t" || true
+fi
+echo ">>> [chroot] marcando firstboot como concluido + limpando cache"
+install -d /var/lib; : > /var/lib/tx9-firstboot.done
+systemctl disable tx9-firstboot.service 2>/dev/null || true
+yes | pacman -Scc >/dev/null 2>&1 || true
+echo ">>> [chroot] fim"
+CHROOT
+
+  # restaura o resolv.conf gerenciado pelo systemd-resolved
+  rm -f "$MNT/etc/resolv.conf"; ln -sf /run/systemd/resolve/stub-resolv.conf "$MNT/etc/resolv.conf"
+  echo ">> pre-instalacao concluida (pacotes ja na imagem; firstboot nao roda no boot)"
+else
+  echo ">> sem pre-instalacao (PREINSTALL=$PREINSTALL, nofirstboot=$NOFIRSTBOOT) — pacotes pelo tx9-firstboot no 1o boot"
+fi
 
 sync
 echo ">> imagem pronta: $IMG"

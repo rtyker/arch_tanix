@@ -1,6 +1,6 @@
 [Unit]
 Description=TX9 first-boot flavor installer
-Documentation=https://github.com/ (arch_tanix)
+Documentation=https://github.com/rtyker/arch_tanix
 After=network-online.target
 Wants=network-online.target
 ConditionPathExists=!/var/lib/tx9-firstboot.done
