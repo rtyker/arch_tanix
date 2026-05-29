@@ -1,0 +1,23 @@
+# base.pkgs — pacotes comuns a TODOS os flavors.
+# O rootfs do ArchLinuxARM (grupo `base`) e bem enxuto; aqui adicionamos o
+# minimo de conforto de linha de comando + acesso remoto.
+# Instalado no 1o boot pelo servico tx9-firstboot (pacman -Syu --needed).
+
+nano
+vim
+sudo
+curl
+wget
+openssh
+less
+htop
+bash-completion
+man-db
+man-pages
+which
+usbutils
+pciutils
+# Wi-Fi: iwd faz a autenticacao; o DHCP fica por conta do systemd-networkd.
+# (o firmware do chip — brcmfmac etc. — vem do pacote linux-firmware; nao
+#  entra no base por ser pesado: habilite-o no flavor que precisar de Wi-Fi)
+iwd

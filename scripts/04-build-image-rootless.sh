@@ -15,6 +15,7 @@ BOOT="$ROOT/boot"
 BUILD="$ROOT/build"
 IMG="$OUT/arch-tx9.img"
 DTB="${DTB:-meson-gxm-tx9-pro.dtb}"     # ou meson-gxm-s912-libretech-pc.dtb
+FLAVOR="${FLAVOR:-minimal}"             # minimal | video | lxqt (config/flavors/)
 IMG_SIZE_MB="${IMG_SIZE_MB:-4096}"
 BOOT_MB=256
 ROOTFS_TAR="$BUILD/ArchLinuxARM-aarch64-latest.tar.gz"
@@ -25,6 +26,8 @@ done
 [ -f "$OUT/KERNEL" ]   || { echo "FALTA out/KERNEL (rode 02-package-kernel.sh)"; exit 1; }
 [ -d "$OUT/modules" ]  || { echo "FALTA out/modules"; exit 1; }
 [ -f "$ROOTFS_TAR" ]   || { echo "FALTA rootfs (rode 03-fetch-rootfs.sh)"; exit 1; }
+[ -f "$ROOT/config/flavors/$FLAVOR.pkgs" ] || { echo "flavor invalido: '$FLAVOR' (veja config/flavors/)"; exit 1; }
+echo ">> flavor: $FLAVOR"
 
 WORK="$(mktemp -d)"
 BOOTIMG="$WORK/boot.fat"
@@ -57,19 +60,21 @@ echo ">> montando arvore do rootfs sob fakeroot"
 # Todo o trabalho que precisa de dono root:root roda dentro de um unico
 # contexto fakeroot, persistido em $ENVF, terminando no mke2fs -d.
 fakeroot -s "$ENVF" -- bash -euo pipefail -c '
-  ROOTDIR="$1"; ROOTFS_TAR="$2"; OUT="$3"; BOOT="$4"; DTB="$5"
+  ROOTDIR="$1"; ROOTFS_TAR="$2"; OUT="$3"; REPO="$4"; FLAVOR="$5"
   mkdir -p "$ROOTDIR"
   echo "   extraindo rootfs ArchLinuxARM"
   tar -xpf "$ROOTFS_TAR" -C "$ROOTDIR"
-  echo "   instalando modulos do kernel"
-  mkdir -p "$ROOTDIR/lib/modules"
-  cp -a "$OUT/modules/lib/modules/." "$ROOTDIR/lib/modules/"
+  echo "   instalando modulos do kernel (descartando os do kernel de fabrica)"
+  rm -rf "$ROOTDIR"/usr/lib/modules/* 2>/dev/null || true
+  mkdir -p "$ROOTDIR/usr/lib/modules"
+  cp -a "$OUT/modules/lib/modules/." "$ROOTDIR/usr/lib/modules/"
   echo "   fstab (root por LABEL)"
   cat > "$ROOTDIR/etc/fstab" <<FSTAB
 # <file system>   <dir>   <type>  <options>          <dump> <pass>
 LABEL=TX9ROOT     /       ext4    defaults,noatime   0      1
 FSTAB
-' _ "$ROOTDIR" "$ROOTFS_TAR" "$OUT" "$BOOT" "$DTB"
+  "$REPO/scripts/lib/apply-flavor.sh" "$ROOTDIR" "$FLAVOR" "$REPO"
+' _ "$ROOTDIR" "$ROOTFS_TAR" "$OUT" "$ROOT" "$FLAVOR"
 
 echo ">> gerando particao ext4 (${ROOT_MB}MB) a partir do diretorio"
 # Reaproveita o mesmo estado fakeroot para que mke2fs leia dono root:root.

@@ -1,0 +1,3 @@
+# minimal.pkgs — o Linux mais basico possivel.
+# Nao adiciona nada alem do base.pkgs (curl, nano, vim, sudo, ssh, ...).
+# Use este flavor para um sistema headless/servidor leve.

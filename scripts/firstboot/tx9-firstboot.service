@@ -1,0 +1,16 @@
+[Unit]
+Description=TX9 first-boot flavor installer
+Documentation=https://github.com/ (arch_tanix)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=!/var/lib/tx9-firstboot.done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/tx9-firstboot.sh
+RemainAfterExit=yes
+TimeoutStartSec=0
+StandardOutput=journal+console
+
+[Install]
+WantedBy=multi-user.target

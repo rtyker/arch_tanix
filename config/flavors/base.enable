@@ -1,0 +1,3 @@
+# Unidades systemd habilitadas no 1o boot para TODOS os flavors.
+sshd.service
+iwd.service

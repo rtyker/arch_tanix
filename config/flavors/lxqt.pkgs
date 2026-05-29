@@ -1,0 +1,20 @@
+# lxqt.pkgs — desktop completo LXQt sobre X11.
+# LXQt (Qt5) e leve e moderno; em X11 o compositing e via Xrender (nao depende
+# de OpenGL desktop, que a panfrost nao oferece). Os apps GLES ainda aceleram
+# pela Mali atraves do modesetting/glamor.
+
+# Servidor grafico X11 (o DDX `modesetting`, embutido no xorg-server, usa o
+# KMS do meson-drm + glamor/GLES — sem driver de video separado)
+xorg-server
+xorg-xinit
+mesa
+
+# Ambiente de desktop
+lxqt                # grupo: lxqt-session, lxqt-panel, pcmanfm-qt, etc.
+openbox             # gerenciador de janelas padrao do LXQt
+sddm                # display manager (login grafico)
+
+# Aparencia / utilidades
+breeze-icons        # tema de icones usado pelo LXQt
+ttf-dejavu          # fontes
+xdg-utils

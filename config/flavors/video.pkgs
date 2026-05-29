@@ -1,0 +1,22 @@
+# video.pkgs — stack grafica Wayland ACELERADA pela GPU (Mali-T820/panfrost).
+# panfrost so expoe GLES2/GLES3 (sem OpenGL desktop); compositores wlroots
+# usam exatamente GLES2, entao casam perfeitamente com este hardware.
+# Sessao = wayfire (compositor wlroots) iniciada pelo greetd.
+
+# Driver de espaco de usuario: panfrost (GLES/EGL/GBM) vem no mesa
+mesa
+mesa-utils          # eglinfo / es2gears p/ validar aceleracao
+wayland
+xorg-xwayland       # roda apps X11 sob Wayland
+
+# Compositor wlroots + utilitarios de sessao
+wayfire             # compositor (GLES2 — usa a Mali de verdade)
+swaybg              # papel de parede
+waybar              # barra de status
+wofi                # lancador de apps
+foot                # terminal Wayland leve
+
+# Login / seat
+greetd              # gerenciador de login minimalista (greeter texto: agreety)
+seatd               # gerencia acesso a /dev/dri e input sem logind completo
+polkit

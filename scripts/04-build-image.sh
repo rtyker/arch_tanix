@@ -10,7 +10,8 @@ BOOT="$ROOT/boot"
 BUILD="$ROOT/build"
 IMG="$OUT/arch-tx9.img"
 DTB="${DTB:-meson-gxm-tx9-pro.dtb}"     # ou meson-gxm-s912-libretech-pc.dtb
-IMG_SIZE_MB="${IMG_SIZE_MB:-3072}"
+FLAVOR="${FLAVOR:-minimal}"             # minimal | video | lxqt (config/flavors/)
+IMG_SIZE_MB="${IMG_SIZE_MB:-4096}"
 BOOT_MB=256
 ROOTFS_TAR="$BUILD/ArchLinuxARM-aarch64-latest.tar.gz"
 
@@ -18,6 +19,8 @@ ROOTFS_TAR="$BUILD/ArchLinuxARM-aarch64-latest.tar.gz"
 [ -f "$OUT/KERNEL" ]   || { echo "FALTA out/KERNEL (rode 02-package-kernel.sh)"; exit 1; }
 [ -d "$OUT/modules" ]  || { echo "FALTA out/modules"; exit 1; }
 [ -f "$ROOTFS_TAR" ]   || { echo "FALTA rootfs (rode 03-fetch-rootfs.sh)"; exit 1; }
+[ -f "$ROOT/config/flavors/$FLAVOR.pkgs" ] || { echo "flavor invalido: '$FLAVOR' (veja config/flavors/)"; exit 1; }
+echo ">> flavor: $FLAVOR"
 
 cleanup() { set +e; [ -n "${MNT:-}" ] && umount -R "$MNT" 2>/dev/null; [ -n "${LO:-}" ] && losetup -d "$LO" 2>/dev/null; [ -n "${MNT:-}" ] && rmdir "$MNT" 2>/dev/null; }
 trap cleanup EXIT
@@ -48,8 +51,10 @@ mount "${LO}p1" "$MNT/boot"
 echo ">> extraindo rootfs ArchLinuxARM"
 tar -xpf "$ROOTFS_TAR" -C "$MNT"
 
-echo ">> instalando modulos do kernel"
-cp -a "$OUT/modules/lib/modules/." "$MNT/lib/modules/"
+echo ">> instalando modulos do kernel (descartando os do kernel de fabrica)"
+rm -rf "$MNT"/usr/lib/modules/* 2>/dev/null || true
+mkdir -p "$MNT/usr/lib/modules"
+cp -a "$OUT/modules/lib/modules/." "$MNT/usr/lib/modules/"
 
 echo ">> populando boot (FAT)"
 cp "$OUT/KERNEL" "$MNT/boot/KERNEL"
@@ -68,6 +73,9 @@ cat > "$MNT/etc/fstab" <<EOF
 # <file system>   <dir>   <type>  <options>          <dump> <pass>
 UUID=$ROOTUUID    /       ext4    defaults,noatime   0      1
 EOF
+
+echo ">> aplicando flavor"
+"$ROOT/scripts/lib/apply-flavor.sh" "$MNT" "$FLAVOR" "$ROOT"
 
 sync
 echo ">> imagem pronta: $IMG"

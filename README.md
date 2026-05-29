@@ -42,6 +42,40 @@ sudo ./scripts/04-build-image.sh # monta out/arch-tx9.img                [precis
 ./scripts/04-build-image-rootless.sh  # mesma imagem via fakeroot+mke2fs -d+mtools
 ```
 
+O passo 04 aceita `FLAVOR=` para escolher o conjunto de pacotes (ver abaixo):
+
+```bash
+FLAVOR=minimal ./scripts/04-build-image-rootless.sh   # padrao
+FLAVOR=video   ./scripts/04-build-image-rootless.sh
+FLAVOR=lxqt    ./scripts/04-build-image-rootless.sh
+```
+
+## Flavors
+
+Os pacotes de cada flavor **não** são instalados no host (rootfs é aarch64).
+A imagem leva uma lista de pacotes embarcada em `/etc/tx9/flavor.pkgs` e um
+serviço systemd oneshot **`tx9-firstboot`** que, no **1º boot**, inicializa o
+keyring, roda `pacman -Syu` com essa lista, habilita os serviços do flavor e se
+desabilita. Definições em `config/flavors/` (`base.pkgs` é comum a todos):
+
+| Flavor    | O que instala | Gráfico |
+|-----------|---------------|---------|
+| `minimal` | só o `base`: curl, nano, vim, sudo, ssh, iwd, … | nenhum |
+| `video`   | base + Mesa/panfrost + **wayfire** (Wayland/GLES2) + greetd | Wayland acelerado |
+| `lxqt`    | base + Xorg + Mesa + **LXQt** + sddm | desktop X11 completo |
+
+Escolha do stack gráfico: a Mali-T820 com **panfrost** só expõe **GLES2/3** (sem
+OpenGL desktop). Por isso `video` usa um compositor **wlroots (wayfire)**, que
+fala GLES2 nativamente e usa a GPU de verdade; `lxqt` roda em X11 (compositing
+por Xrender, sem depender de GL desktop). Cinnamon foi descartado por exigir
+compositing OpenGL — cairia em software (llvmpipe), inviável no A53.
+
+> **1º boot precisa de rede.** O build habilita `systemd-networkd` com DHCP
+> cabeado (`en*/eth*`), então conecte o **Ethernet** no primeiro boot. Wi-Fi
+> (brcmfmac) exige `linux-firmware` + `iwctl` e só fica pronto depois. Acompanhe
+> em `/var/log/tx9-firstboot.log`. Os flavors gráficos baixam centenas de MB —
+> use `IMG_SIZE_MB>=4096` (padrão).
+
 ## Gravar e bootar
 
 ```bash

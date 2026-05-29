@@ -1,0 +1,8 @@
+# greetd — flavor video. Greeter de texto (agreety) que, apos o login,
+# inicia o compositor wayfire (Wayland, acelerado por panfrost/GLES2).
+[terminal]
+vt = 1
+
+[default_session]
+command = "agreety --cmd wayfire"
+user = "greeter"
