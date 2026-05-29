@@ -1,0 +1,25 @@
+# Artefatos de build (pesados / reprodutíveis) — não versionar
+/build/
+/out/
+/rootfs/*
+!/rootfs/.gitkeep
+
+# Binários e pacotes baixados em toolbin (mantém só os scripts/notas)
+/toolbin/bin/
+/toolbin/pkg/
+
+# Imagens e tarballs em qualquer lugar
+*.img
+*.img.gz
+*.img.xz
+*.tar.gz
+*.tar.xz
+*.tar.zst
+*.pkg.tar.*
+Image
+Image.lzo
+
+# Lixo comum
+*.log
+*~
+.DS_Store
