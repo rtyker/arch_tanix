@@ -21,6 +21,12 @@ fi
 echo ">> pacman-key --populate archlinuxarm"
 pacman-key --populate archlinuxarm || true
 
+# 1b. gera os locales descomentados em /etc/locale.gen (ex.: pt_BR.UTF-8).
+#     Roda antes do pacman: nao precisa de rede e garante LANG mesmo se o
+#     pacman falhar. (locale.conf=LANG=pt_BR.UTF-8 ja foi escrito no build.)
+echo ">> locale-gen"
+locale-gen || true
+
 # 2. pacotes do flavor (base.pkgs + <flavor>.pkgs ja mesclados em flavor.pkgs)
 # pega so o 1o token de cada linha (ignora comentarios inline e linhas vazias/#)
 mapfile -t PKGS < <(awk 'NF && $1 !~ /^#/ {print $1}' "$TX9/flavor.pkgs" 2>/dev/null || true)

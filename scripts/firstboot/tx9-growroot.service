@@ -1,0 +1,15 @@
+[Unit]
+Description=TX9 grow root partition + filesystem to fill device (first boot)
+# Roda cedo, com o root ja montado rw, e ANTES da instalacao de pacotes.
+After=local-fs.target
+Before=tx9-firstboot.service
+ConditionPathExists=!/var/lib/tx9-growroot.done
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/tx9-growroot.sh
+StandardOutput=journal+console
+
+[Install]
+WantedBy=multi-user.target

@@ -9,9 +9,12 @@ toothpick, **sem tocar no eMMC/Android** interno.
 - SoC: Amlogic **S912** (`amlogic,meson-gxm`), octa-core Cortex-A53
 - RAM: 3 GB
 - GPU: Mali-T820 (panfrost no mainline; `/dev/dri/card*` + `renderD128`)
-- Console serial: `ttyAML0,115200n8`
-- DTB: `meson-gxm-tx9-pro.dtb` (alt.: `meson-gxm-s912-libretech-pc.dtb`, usado pelo
-  LibreELEC de fábrica neste box)
+- Console serial: `ttyAML0,115200n8` (UART AO em `0xc81004c0`; `earlycon=meson,0xc81004c0`)
+- DTB: **`meson-gxm-s912-libretech-pc.dtb`**, gerado pelo **nosso** kernel
+  (`out/dtb/`) — é o modelo que este box aceita (o LibreELEC de fábrica também
+  boota com ele). **Não** reutilize o `tx9-pro` do LibreELEC: é de outro kernel
+  (downstream) e nem existe no mainline 6.12; casar dtb alheio com o nosso kernel
+  causava pânico precoce.
 
 ## Cadeia de boot (replicada do LibreELEC)
 
@@ -20,11 +23,15 @@ toothpick, **sem tocar no eMMC/Android** interno.
 3. `boot.scr` (script distro) importa `uEnv.ini` (define `dtb_name` e `bootargs`),
    carrega `KERNEL`, dtb, e `bootm`.
 
-Como **não existe `u-boot.ext`** neste box, quem executa `bootm` é o u-boot de
-fábrica → o kernel precisa ser **uImage legacy** (não Image cru).
+Como **não existe `u-boot.ext`** neste box (confirmado por serial), quem executa
+`bootm` é o u-boot de fábrica → o kernel precisa ser **uImage legacy** (não Image cru).
 
-Formato do KERNEL (lido do uImage do LibreELEC):
-`arch=arm64 os=linux type=kernel comp=lzo load=0x01d80000 entry=0x01d80000`.
+Formato do KERNEL: uImage legacy `arch=arm64 os=linux type=kernel comp=lzo`,
+com **`load=entry=0x02000000`** (ver `scripts/02-package-kernel.sh`). O destino
+fica logo acima do container do uImage e na faixa de RAM que o u-boot de fábrica
+alcança — `0x01d80000` (LibreELEC) não cabe porque nosso kernel comprimido é maior,
+e endereços altos (`0x08000000`) o u-boot descomprime mas… na prática o que travava
+o boot **não** era isso: era o `root=` (veja abaixo).
 
 ## Layout do cartão (MBR)
 
@@ -58,11 +65,28 @@ serviço systemd oneshot **`tx9-firstboot`** que, no **1º boot**, inicializa o
 keyring, roda `pacman -Syu` com essa lista, habilita os serviços do flavor e se
 desabilita. Definições em `config/flavors/` (`base.pkgs` é comum a todos):
 
-| Flavor    | O que instala | Gráfico |
-|-----------|---------------|---------|
-| `minimal` | só o `base`: curl, nano, vim, sudo, ssh, iwd, … | nenhum |
-| `video`   | base + Mesa/panfrost + **wayfire** (Wayland/GLES2) + greetd | Wayland acelerado |
-| `lxqt`    | base + Xorg + Mesa + **LXQt** + sddm | desktop X11 completo |
+| Flavor     | O que instala | Gráfico |
+|------------|---------------|---------|
+| `failsafe` | **nada** — só o rootfs base + autologin root no serial/HDMI. Mínimo p/ diagnóstico (sem rede, sem firstboot) | nenhum |
+| `minimal`  | só o `base`: curl, nano, vim, sudo, ssh, iwd, … | nenhum |
+| `video`    | base + Mesa/panfrost + **wayfire** (Wayland/GLES2) + greetd | Wayland acelerado |
+| `lxqt`     | base + Xorg + Mesa + **LXQt** + sddm | desktop X11 completo |
+
+### Ajustes aplicados nos flavors reais (a partir do `minimal`)
+
+`apply-flavor.sh`/`tx9-firstboot` configuram automaticamente (o `failsafe` fica
+de fora destes, por ser mínimo):
+
+- **root por PARTUUID** (`root=PARTUUID=54583900-02`) — o kernel resolve sem
+  initramfs; `LABEL=`/`UUID=` **não** funcionam sem initramfs (era a causa real do
+  "bootloop": pânico `VFS: unable to mount root`).
+- **Auto-expansão do root** no 1º boot (`tx9-growroot`): cresce a `p2` + ext4 para
+  ocupar todo o cartão/pendrive (via `sfdisk`+`partx`+`resize2fs`, sem pacotes extras).
+- **Locale** `pt_BR.UTF-8` (gerado no 1º boot por `locale-gen`).
+- **Fonte de console** maior (`latarcyrheb-sun32`) para a TV.
+- **NTP do Brasil** via `systemd-timesyncd` (`a/b/c.ntp.br`).
+- **SSH root** habilitado (`PermitRootLogin yes`); login `root`/`root`.
+- **pacman**: `DisableSandboxFilesystem` (kernel sem `CONFIG_SECURITY_LANDLOCK`).
 
 Escolha do stack gráfico: a Mali-T820 com **panfrost** só expõe **GLES2/3** (sem
 OpenGL desktop). Por isso `video` usa um compositor **wlroots (wayfire)**, que

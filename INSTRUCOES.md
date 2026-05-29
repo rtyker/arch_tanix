@@ -30,10 +30,15 @@ Ao final: `>> imagem pronta: .../out/arch-tx9.img`.
 ### Escolha do flavor (passo 4)
 
 ```bash
-FLAVOR=minimal ./scripts/04-build-image-rootless.sh   # só CLI: curl, nano, ssh… (padrão)
-FLAVOR=video   ./scripts/04-build-image-rootless.sh   # Wayland + wayfire (GPU panfrost)
-FLAVOR=lxqt    ./scripts/04-build-image-rootless.sh   # desktop X11 LXQt completo
+FLAVOR=failsafe ./scripts/04-build-image-rootless.sh  # mínimo p/ diagnóstico: shell root, sem rede
+FLAVOR=minimal  ./scripts/04-build-image-rootless.sh  # só CLI: curl, nano, ssh… (padrão)
+FLAVOR=video    ./scripts/04-build-image-rootless.sh  # Wayland + wayfire (GPU panfrost)
+FLAVOR=lxqt     ./scripts/04-build-image-rootless.sh  # desktop X11 LXQt completo
 ```
+
+Os flavors reais (`minimal`/`video`/`lxqt`) já vêm com locale `pt_BR.UTF-8`, fonte
+de console maior, NTP do Brasil, SSH root habilitado e **auto-expansão do root**
+(ocupa todo o cartão no 1º boot). O `failsafe` é o mínimo absoluto (sem rede/firstboot).
 
 Definições em `config/flavors/`. Variáveis opcionais:
 - `DTB=meson-gxm-s912-libretech-pc.dtb`  dtb alternativo
@@ -76,7 +81,7 @@ sync
 1. Insere o cartão/pendrive no Tanix TX9.
 2. **Conecte o cabo Ethernet** — o 1º boot precisa de rede (veja abaixo).
 3. Segura o reset (dentro do conector AV, com um palito) e liga.
-4. O kernel monta a ext4 (`root=LABEL=TX9ROOT`) e sobe o ArchLinuxARM.
+4. O kernel monta a ext4 (`root=PARTUUID=54583900-02`) e sobe o ArchLinuxARM.
 
 ### Primeiro boot: instalação dos pacotes do flavor
 

@@ -69,6 +69,39 @@ if [ -d "$FLAVDIR/$FLAVOR.files" ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# 3b. SSH: permite login de root (todos os flavors). O tarball base do
+#     ArchLinuxARM ja traz openssh com sshd habilitado, mas o default e
+#     'prohibit-password' (root so por chave). Drop-in com prefixo baixo (10-)
+#     para vencer o 99-archlinux.conf; o sshd_config base ja faz
+#     'Include /etc/ssh/sshd_config.d/*.conf'.
+#     ATENCAO: root:root e a senha de fabrica do ArchLinuxARM — troque a senha
+#     (ou use chave) num sistema exposto.
+# ---------------------------------------------------------------------------
+install -d "$ROOTDIR/etc/ssh/sshd_config.d"
+cat > "$ROOTDIR/etc/ssh/sshd_config.d/10-tx9.conf" <<'EOF'
+# TX9: box de desenvolvimento — permite login root via SSH (senha/chave).
+PermitRootLogin yes
+EOF
+
+# ---------------------------------------------------------------------------
+# 3c. pacman: desativa o sandbox de filesystem (landlock). Nosso kernel mainline
+#     (defconfig) NAO tem CONFIG_SECURITY_LANDLOCK, e o pacman 7.1 aborta o
+#     downloader ao tentar restringir o FS via landlock. Sem isso o tx9-firstboot
+#     (pacman -Syu no 1o boot) falha. O seccomp (DisableSandboxSyscalls) segue
+#     ativo pois o kernel suporta. Alternativa definitiva: habilitar landlock no
+#     kernel (planejado ao enxugar o defconfig) e reverter este ajuste.
+# ---------------------------------------------------------------------------
+PACCONF="$ROOTDIR/etc/pacman.conf"
+if [ -f "$PACCONF" ]; then
+  if grep -q '^#*[[:space:]]*DisableSandboxFilesystem' "$PACCONF"; then
+    sed -i 's/^#*[[:space:]]*DisableSandboxFilesystem.*/DisableSandboxFilesystem/' "$PACCONF"
+  else
+    sed -i '/^\[options\]/a DisableSandboxFilesystem' "$PACCONF"
+  fi
+  echo "   pacman: DisableSandboxFilesystem (landlock indisponivel no kernel)"
+fi
+
+# ---------------------------------------------------------------------------
 # 4. rede para o 1o boot: systemd-networkd + resolved (DHCP cabeado, 0 pacotes)
 #    (sao parte do systemd, ja presentes no rootfs base)
 #    Pulado no failsafe/nofirstboot: o failsafe nao precisa de rede.
@@ -101,4 +134,39 @@ EOF
   ln -sf /run/systemd/resolve/stub-resolv.conf "$ROOTDIR/etc/resolv.conf"
 
   echo ">> flavor '$FLAVOR' aplicado (pacotes serao instalados no 1o boot)"
+fi
+
+# ---------------------------------------------------------------------------
+# 5. ajustes de sistema dos flavors reais (a partir do minimal; NAO no failsafe):
+#    auto-expansao do root, locale pt_BR.UTF-8, fonte de console maior e NTP.br.
+# ---------------------------------------------------------------------------
+if [ "$NOFIRSTBOOT" != 1 ]; then
+  # 5a. auto-expandir particao do root + ext4 no 1o boot (oneshot, antes do firstboot)
+  install -Dm755 "$FB/tx9-growroot.sh"      "$ROOTDIR/usr/local/sbin/tx9-growroot.sh"
+  install -Dm644 "$FB/tx9-growroot.service" "$ROOTDIR/etc/systemd/system/tx9-growroot.service"
+  mkdir -p "$ROOTDIR/etc/systemd/system/multi-user.target.wants"
+  ln -sf ../tx9-growroot.service \
+    "$ROOTDIR/etc/systemd/system/multi-user.target.wants/tx9-growroot.service"
+
+  # 5b. locale pt_BR.UTF-8 — descomenta em locale.gen (gerado no 1o boot via
+  #     locale-gen pelo tx9-firstboot) e define LANG.
+  [ -f "$ROOTDIR/etc/locale.gen" ] && \
+    sed -i 's/^#[[:space:]]*\(pt_BR.UTF-8 UTF-8\)/\1/' "$ROOTDIR/etc/locale.gen"
+  echo "LANG=pt_BR.UTF-8" > "$ROOTDIR/etc/locale.conf"
+
+  # 5c. fonte de console maior (legibilidade na TV); latarcyrheb-sun32 vem no kbd
+  #     base e cobre os acentos do pt_BR.
+  echo "FONT=latarcyrheb-sun32" > "$ROOTDIR/etc/vconsole.conf"
+
+  # 5d. NTP do Brasil via systemd-timesyncd (parte do systemd, 0 pacotes extras)
+  cat > "$ROOTDIR/etc/systemd/timesyncd.conf" <<'EOF'
+[Time]
+NTP=a.ntp.br b.ntp.br c.ntp.br
+FallbackNTP=0.br.pool.ntp.org 1.br.pool.ntp.org pool.ntp.org
+EOF
+  mkdir -p "$ROOTDIR/etc/systemd/system/sysinit.target.wants"
+  ln -sf /usr/lib/systemd/system/systemd-timesyncd.service \
+    "$ROOTDIR/etc/systemd/system/sysinit.target.wants/systemd-timesyncd.service"
+
+  echo ">> ajustes flavor real: growroot + locale pt_BR.UTF-8 + fonte sun32 + NTP.br"
 fi
