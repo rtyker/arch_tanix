@@ -9,7 +9,8 @@ OUT="$ROOT/out"
 BOOT="$ROOT/boot"
 BUILD="$ROOT/build"
 IMG="$OUT/arch-tx9.img"
-DTB="${DTB:-meson-gxm-tx9-pro.dtb}"     # ou meson-gxm-s912-libretech-pc.dtb
+# DTB do NOSSO kernel (out/dtb/), nunca o do LibreELEC: tem que casar com o kernel.
+DTB="${DTB:-meson-gxm-s912-libretech-pc.dtb}"
 FLAVOR="${FLAVOR:-minimal}"             # minimal | video | lxqt (config/flavors/)
 IMG_SIZE_MB="${IMG_SIZE_MB:-4096}"
 BOOT_MB=256
@@ -18,6 +19,7 @@ ROOTFS_TAR="$BUILD/ArchLinuxARM-aarch64-latest.tar.gz"
 [ "$(id -u)" -eq 0 ] || { echo "rode como root (sudo)"; exit 1; }
 [ -f "$OUT/KERNEL" ]   || { echo "FALTA out/KERNEL (rode 02-package-kernel.sh)"; exit 1; }
 [ -d "$OUT/modules" ]  || { echo "FALTA out/modules"; exit 1; }
+[ -f "$OUT/dtb/$DTB" ] || { echo "FALTA $OUT/dtb/$DTB (dtb do nosso kernel; rode 01-build-kernel.sh)"; exit 1; }
 [ -f "$ROOTFS_TAR" ]   || { echo "FALTA rootfs (rode 03-fetch-rootfs.sh)"; exit 1; }
 [ -f "$ROOT/config/flavors/$FLAVOR.pkgs" ] || { echo "flavor invalido: '$FLAVOR' (veja config/flavors/)"; exit 1; }
 echo ">> flavor: $FLAVOR"
@@ -34,6 +36,12 @@ parted -s "$IMG" mklabel msdos
 parted -s "$IMG" mkpart primary fat32 1MiB "$((BOOT_MB + 1))MiB"
 parted -s "$IMG" mkpart primary ext4  "$((BOOT_MB + 1))MiB" 100%
 parted -s "$IMG" set 1 boot on
+
+# disk-id fixo no MBR -> PARTUUID deterministico (root=PARTUUID resolve sem initramfs)
+DISKID=0x54583900                          # ASCII "TX9\0"
+PARTUUID="${DISKID#0x}-02"                  # p2 = rootfs ext4 -> 54583900-02
+sfdisk --disk-id "$IMG" "$DISKID" >/dev/null
+echo ">> disk-id MBR = $DISKID  (PARTUUID root = $PARTUUID)"
 
 LO="$(losetup -f --show -P "$IMG")"
 echo ">> loop: $LO"
@@ -60,12 +68,18 @@ echo ">> populando boot (FAT)"
 cp "$OUT/KERNEL" "$MNT/boot/KERNEL"
 cp "$BOOT/boot.scr" "$BOOT/aml_autoscript" "$BOOT/s905_autoscript" "$BOOT/emmc_autoscript" "$MNT/boot/"
 mkdir -p "$MNT/boot/dtb"
-cp "$BOOT/amlogic/$DTB" "$MNT/boot/dtb/$DTB"
+cp "$OUT/dtb/$DTB" "$MNT/boot/dtb/$DTB"
 
 echo ">> uEnv.ini"
+# bootargs base + extras opcionais do flavor (config/flavors/<flavor>.bootargs).
+BOOTARGS="root=PARTUUID=$PARTUUID rootfstype=ext4 rootwait rw console=ttyAML0,115200n8 console=tty0"
+if [ -f "$ROOT/config/flavors/$FLAVOR.bootargs" ]; then
+  EXTRA="$(awk 'NF && $1 !~ /^#/ {print $1}' "$ROOT/config/flavors/$FLAVOR.bootargs" | paste -sd' ')"
+  [ -n "$EXTRA" ] && BOOTARGS="$BOOTARGS $EXTRA" && echo ">> bootargs extra ($FLAVOR): $EXTRA"
+fi
 cat > "$MNT/boot/uEnv.ini" <<EOF
 dtb_name=/dtb/$DTB
-bootargs=root=UUID=$ROOTUUID rootfstype=ext4 rootwait rw console=ttyAML0,115200n8 console=tty0
+bootargs=$BOOTARGS
 EOF
 
 echo ">> fstab"

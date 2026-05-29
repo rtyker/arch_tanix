@@ -1,0 +1,3 @@
+# A simples existencia deste arquivo sinaliza ao apply-flavor.sh que o flavor
+# e "failsafe": NAO instalar o servico tx9-firstboot e NAO configurar rede.
+# Conteudo ignorado.

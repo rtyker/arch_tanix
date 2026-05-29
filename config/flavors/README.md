@@ -12,9 +12,21 @@ instalados na **própria box no 1º boot** (serviço `tx9-firstboot`), não no h
 | `<nome>.enable`      | não         | unidades systemd a habilitar no 1º boot (1 por linha) |
 | `<nome>.target`      | não         | default target (ex.: `graphical.target`) |
 | `<nome>.files/`      | não         | árvore copiada para a raiz do rootfs (ex.: `etc/greetd/config.toml`) |
+| `<nome>.bootargs`    | não         | params EXTRA de kernel cmdline, anexados ao `bootargs` base no `uEnv.ini` (1 token/linha; `#` comenta) |
+| `<nome>.nofirstboot` | não         | só a presença importa: pula o serviço `tx9-firstboot` **e** todo o setup de rede (flavor 100% offline) |
 
 `base.pkgs` e `base.enable` são **sempre** mesclados ao flavor escolhido, então
 cada `<nome>.pkgs` lista só o que é específico dele.
+
+## `failsafe` — diagnóstico de boot
+
+O flavor `failsafe` é o **mínimo absoluto**: `failsafe.pkgs` vazio + `failsafe.nofirstboot`
+(sem pacman, sem rede) + `failsafe.files/` com autologin root no serial (`ttyAML0`)
+e no HDMI (`tty1`) e `default.target` forçado em `multi-user.target`. O
+`failsafe.bootargs` liga log máximo desde o início (`earlycon`, `keep_bootcon`,
+`ignore_loglevel`, `initcall_debug`, …). Serve para responder: *o kernel chega a
+montar o rootfs e rodar o init?* Se nem isto cair num shell, o problema é
+kernel/early boot — capture o serial (`earlycon` já imprime antes do tty subir).
 
 ## Criar um novo flavor
 

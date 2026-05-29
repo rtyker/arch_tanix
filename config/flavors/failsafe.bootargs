@@ -1,0 +1,20 @@
+# failsafe.bootargs — parametros EXTRA de kernel cmdline, anexados ao bootargs
+# base pelo 04-build-image*.sh quando FLAVOR=failsafe.
+#
+# Mantemos visibilidade no serial, mas SEM o que tornava o boot lentissimo
+# (~44s eram quase so impressao serial a 115200):
+#   - initcall_debug  -> despejava milhares de linhas (1 par por initcall);
+#   - keep_bootcon    -> deixava earlycon + ttyAML0 ativos no MESMO UART,
+#                        duplicando CADA linha. Sem ele, o earlycon e
+#                        desregistrado assim que o ttyAML0 assume (sem duplicar).
+# Esses dois ficaram so na fase de diagnostico; ja confirmamos que o kernel
+# inicia e monta o root.
+#
+# 1 token por linha; '#' comenta.
+
+# Console serial cedo (antes do driver tty meson). UART AO do S912/GXM = 0xc81004c0.
+# Sem keep_bootcon: some sozinho quando o console ttyAML0 entra.
+earlycon=meson,0xc81004c0
+# Timestamps em cada printk e console que nao suspende (baratos, ajudam a depurar).
+printk.time=1
+no_console_suspend
