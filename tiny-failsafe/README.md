@@ -5,7 +5,7 @@ Este subprojeto contém scripts e arquivos para gerar um ambiente de recuperaç�
 O sistema dá boot completo e cai direto no prompt de comando em **menos de 5 segundos**!
 
 ## Características do Tiny Failsafe
-1. **Infraestrutura em RAM (Initramfs)**: O BusyBox completo é embutido diretamente como `initramfs` dentro da imagem do kernel Linux.
+1. **Infraestrutura em RAM (Initramfs)**: Um BusyBox **enxuto** (gerado via `allnoconfig` + uma lista mínima de applets — shell `ash`, utilitários de arquivo/sistema, rede básica e `setsid`) é compilado estaticamente para `aarch64` e embutido diretamente como `initramfs` dentro da imagem do kernel Linux.
 2. **Sem Módulos de Kernel (`CONFIG_MODULES=n`)**: Todos os drivers essenciais (Display DRM Meson, USB Host XHCI, USB HID, Clocks da plataforma Amlogic, Teclado USB) são compilados de forma **monolítica** (`=y`) direto no kernel, garantindo que o hardware funcione sem depender de carregamento de arquivos do disco.
 3. **Altamente Otimizado**: Drivers de outras placas de SoC (Qualcomm, Tegra, Rockchip, Apple, etc.), placas de vídeo pesadas (Nouveau, AMD, Intel), suporte a rede física, som, virtualização e sistemas de arquivos pesados (Btrfs, XFS, F2FS, NFS, CIFS) foram completamente desabilitados, deixando o kernel enxuto (~14MB comprimido em LZO).
 4. **Console Duplo**: O console interativo do BusyBox abre simultaneamente na TV (via HDMI, tty1) e na console serial (UART, ttyAML0).
@@ -14,7 +14,7 @@ O sistema dá boot completo e cai direto no prompt de comando em **menos de 5 se
 
 ## Estrutura de Arquivos
 
-* `build-busybox.sh`: Baixa o BusyBox, compila de forma estática para `aarch64` e popula a árvore de diretórios do initramfs.
+* `build-busybox.sh`: Baixa o BusyBox, configura um conjunto mínimo de applets (`allnoconfig` + enables seletivos, incluindo o `setsid` exigido pelo `/init`), compila de forma estática para `aarch64` e popula a árvore de diretórios do initramfs.
 * `initramfs-root/`: Esqueleto do sistema de arquivos raiz temporário (contém o binário `busybox` e o script de inicialização principal `/init`).
 * `prune-config.sh`: Configura o kernel aplicando as otimizações de poda de tamanho (desativa SoCs, som, virtualização, btrfs, rede física, etc.).
 * `build-kernel.sh`: Compila o kernel monolítico com o initramfs embutido.

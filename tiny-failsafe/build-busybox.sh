@@ -30,11 +30,43 @@ cd "$BUSYBOX_DIR"
 
 # 3. Configurar estatico
 if [ ! -f .config ]; then
-  echo ">> Configurando BusyBox (defconfig)"
-  make defconfig
-  echo ">> Ajustando configuracoes com scripts/config do kernel"
-  "$ROOT/build/linux-$KVER/scripts/config" --file .config --enable CONFIG_STATIC
-  "$ROOT/build/linux-$KVER/scripts/config" --file .config --disable CONFIG_TC
+  echo ">> Configurando BusyBox (allnoconfig + comandos essenciais)"
+  make allnoconfig
+  
+  echo ">> Ajustando configuracoes de tamanho e basicas"
+  CONFIG_TOOL="$ROOT/build/linux-$KVER/scripts/config"
+  
+  # Ativa o link estatico e ajustes de tamanho
+  "$CONFIG_TOOL" --file .config --enable CONFIG_STATIC
+  "$CONFIG_TOOL" --file .config --enable CONFIG_LFS
+  "$CONFIG_TOOL" --file .config --enable CONFIG_SHOW_USAGE
+  "$CONFIG_TOOL" --file .config --enable CONFIG_FEATURE_VERBOSE_USAGE
+  
+  # Ativa Shell ash
+  "$CONFIG_TOOL" --file .config --enable CONFIG_ASH
+  "$CONFIG_TOOL" --file .config --enable CONFIG_ASH_OPTIMIZE_FOR_SIZE
+  "$CONFIG_TOOL" --file .config --enable CONFIG_ASH_INTERNAL_GLOB
+  "$CONFIG_TOOL" --file .config --enable CONFIG_ASH_BASH_COMPAT
+  "$CONFIG_TOOL" --file .config --enable CONFIG_ASH_JOB_CONTROL
+  "$CONFIG_TOOL" --file .config --enable CONFIG_FEATURE_SH_MATH
+  "$CONFIG_TOOL" --file .config --enable CONFIG_SH_IS_ASH
+  
+  # Ativa comandos essenciais de arquivos e sistema
+  # (poweroff/reboot vem de CONFIG_HALT; setsid e exigido pelo /init que vira PID 1)
+  for opt in CAT CHMOD CP DD DF DU ECHO ENV LN LS MKDIR MV RM SLEEP UNAME CLEAR PRINTF \
+             DMESG FREE PS TOP KILL KILLALL VI LESS GREP EGREP FGREP FIND MKNOD MKFIFO HEAD TAIL HEXDUMP \
+             MOUNT UMOUNT HALT SETSID \
+             IFCONFIG ROUTE IP PING UDHCPC NC; do
+    "$CONFIG_TOOL" --file .config --enable "CONFIG_$opt"
+  done
+  
+  # Configura instalacao de symlinks
+  "$CONFIG_TOOL" --file .config --enable CONFIG_INSTALL_APPLET_SYMLINKS
+  
+  echo ">> Resolvendo dependencias (yes \"\" | make oldconfig)"
+  set +o pipefail
+  yes "" | make oldconfig
+  set -o pipefail
 fi
 
 # 4. Compilar e instalar

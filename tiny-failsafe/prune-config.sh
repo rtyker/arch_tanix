@@ -48,14 +48,43 @@ echo ">> Podando configuracao do kernel para o failsafe enxuto"
 ./scripts/config --disable CONFIG_NFS_FS
 ./scripts/config --disable CONFIG_CIFS
 
-# Desabilita drivers de impressora
+# Desabilita drivers de impressora e portas paralelas
 ./scripts/config --disable CONFIG_PRINTER
 ./scripts/config --disable CONFIG_USB_PRINTER
+./scripts/config --disable CONFIG_PARPORT
+./scripts/config --disable CONFIG_PARPORT_PC
 
 # Desabilita BTF e debug pesado para compilar rapido e economizar espaco
 ./scripts/config --disable CONFIG_DEBUG_INFO_BTF
 ./scripts/config --disable CONFIG_DEBUG_KERNEL
 ./scripts/config --disable CONFIG_DEBUG_INFO
+./scripts/config --disable CONFIG_DEBUG_FS
+./scripts/config --disable CONFIG_SLUB_DEBUG
+./scripts/config --disable CONFIG_FTRACE
+./scripts/config --disable CONFIG_STACKTRACE
+
+# Desativa AArch32 compatibility (executáveis de 32 bits)
+./scripts/config --disable CONFIG_COMPAT
+
+# Desativa ACPI (S912 usa apenas Device Tree)
+./scripts/config --disable CONFIG_ACPI
+
+# Desativa EFI e EFI Stub
+./scripts/config --disable CONFIG_EFI
+./scripts/config --disable CONFIG_EFI_STUB
+
+# Desativa Kallsyms (economiza muito espaço na imagem binária)
+./scripts/config --disable CONFIG_KALLSYMS
+./scripts/config --disable CONFIG_KALLSYMS_ALL
+./scripts/config --disable CONFIG_KALLSYMS_BASE_RELATIVE
+
+# Desativa Gerenciamento de Energia (suspend e hibernação)
+./scripts/config --disable CONFIG_SUSPEND
+./scripts/config --disable CONFIG_HIBERNATION
+
+# Desativa IKCONFIG (config embutida no kernel)
+./scripts/config --disable CONFIG_IKCONFIG
+./scripts/config --disable CONFIG_IKCONFIG_PROC
 
 # Desativa outras famílias de SoC ARM64 (deixa apenas ARCH_MESON)
 for arch in ACTIONS AIROHA SUNXI ALPINE APPLE BCM BCM2835 BCM_IPROC BCMBCA BRCMSTB BERLIN EXYNOS SPARX5 K3 LG1K HISI KEEMBAY MEDIATEK MVEBU NXP LAYERSCAPE MXC S32 MA35 NPCM QCOM REALTEK RENESAS ROCKCHIP SEATTLE INTEL_SOCFPGA STM32 SYNQUACER TEGRA TESLA_FSD SPRD THUNDER THUNDER2 UNIPHIER VEXPRESS VISCONTI XGENE ZYNQMP; do
@@ -111,7 +140,6 @@ enable_builtin CONFIG_KEYBOARD_ATKBD
 ./scripts/config --disable CONFIG_INITRAMFS_COMPRESSION_BZIP2
 ./scripts/config --disable CONFIG_INITRAMFS_COMPRESSION_LZMA
 ./scripts/config --disable CONFIG_INITRAMFS_COMPRESSION_XZ
-./scripts/config --disable CONFIG_INITRAMFS_COMPRESSION_LZO
 ./scripts/config --disable CONFIG_INITRAMFS_COMPRESSION_LZ4
 ./scripts/config --disable CONFIG_INITRAMFS_COMPRESSION_ZSTD
 
