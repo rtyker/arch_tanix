@@ -1,5 +1,5 @@
-# failsafe.bootargs — parametros EXTRA de kernel cmdline, anexados ao bootargs
-# base pelo 04-build-image*.sh quando FLAVOR=failsafe.
+# rootfs-failsafe.bootargs — parametros EXTRA de kernel cmdline, anexados ao bootargs
+# base pelo 04-build-image*.sh quando FLAVOR=rootfs-failsafe.
 #
 # Mantemos visibilidade no serial, mas SEM o que tornava o boot lentissimo
 # (~44s eram quase so impressao serial a 115200):

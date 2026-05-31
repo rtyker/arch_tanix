@@ -1,12 +1,14 @@
-# failsafe.pkgs — O MINIMO ABSOLUTO para diagnosticar o bootloop.
+# rootfs-failsafe.pkgs — O MINIMO ABSOLUTO para diagnosticar o bootloop.
 #
-# Este flavor NAO instala NENHUM pacote e NAO usa rede.
-# (a presenca de failsafe.nofirstboot faz o apply-flavor.sh pular tanto o
-#  servico tx9-firstboot quanto todo o setup de rede.)
+# Este flavor NAO instala NENHUM pacote e NAO adiciona configuracao de rede.
+# (a presenca de rootfs-failsafe.nofirstboot faz o apply-flavor.sh pular tanto o
+#  servico tx9-firstboot quanto a configuracao de rede que ele adicionaria.)
+# OBS: o tarball base ja traz systemd-networkd habilitado + en.network/eth.network
+# (DHCP), entao a rede AINDA sobe; "nofirstboot" so garante que nos nao a tocamos.
 #
 # Objetivo: subir SO o rootfs base do ArchLinuxARM + nosso kernel/modulos e
 # cair direto num shell root (autologin) no serial ttyAML0 e no HDMI tty1,
-# sem pacman, sem rede, sem getty de login. Tudo o que entra aqui ja vem no
+# sem pacman, sem firstboot, sem getty de login. Tudo o que entra aqui ja vem no
 # tarball base (systemd, bash, agetty/util-linux).
 #
 # Use para responder: "o kernel chega a montar o rootfs e rodar o init?"

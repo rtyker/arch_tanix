@@ -31,7 +31,7 @@ sempre mesclado ao flavor escolhido.
 | `<nome>.target`      | não         | default target (ex.: `graphical.target`) |
 | `<nome>.files/`      | não         | árvore copiada para a raiz do rootfs (ex.: `etc/greetd/config.toml`) |
 | `<nome>.bootargs`    | não         | params EXTRA de kernel cmdline, anexados ao `bootargs` base no `uEnv.ini` (1 token/linha; `#` comenta) |
-| `<nome>.nofirstboot` | não         | só a presença importa: pula o serviço `tx9-firstboot` **e** todo o setup de rede (flavor 100% offline) |
+| `<nome>.nofirstboot` | não         | só a presença importa: pula o serviço `tx9-firstboot` **e** a configuração de rede *adicionada pelo apply-flavor* (não cria `20-wired.network` nem habilita networkd). **Atenção:** o tarball base do ArchLinuxARM já vem com `systemd-networkd` habilitado e `en.network`/`eth.network` (DHCP), então a rede ainda sobe — para offline real seria preciso mascarar o networkd |
 
 `base.pkgs` e `base.enable` são **sempre** mesclados ao flavor escolhido, então
 cada `<nome>.pkgs` lista só o que é específico dele.
@@ -39,12 +39,15 @@ cada `<nome>.pkgs` lista só o que é específico dele.
 ## `rootfs-failsafe` — diagnóstico de boot
 
 O flavor `rootfs-failsafe` é o **mínimo absoluto**: `rootfs-failsafe.pkgs` vazio + `rootfs-failsafe.nofirstboot`
-(sem pacman, sem rede) + `rootfs-failsafe.files/` com autologin root no serial (`ttyAML0`)
-e no HDMI (`tty1`) e `default.target` forçado em `multi-user.target`. O
-`rootfs-failsafe.bootargs` liga log máximo desde o início (`earlycon`, `keep_bootcon`,
-`ignore_loglevel`, `initcall_debug`, …). Serve para responder: *o kernel chega a
-montar o rootfs e rodar o init?* Se nem isto cair num shell, o problema é
-kernel/early boot — capture o serial (`earlycon` já imprime antes do tty subir).
+(sem `tx9-firstboot`/pacman e sem rede adicionada por nós — mas veja a ressalva do
+`nofirstboot` acima: o networkd do tarball base ainda sobe) + `rootfs-failsafe.files/`
+com autologin root no serial (`ttyAML0`) e no HDMI (`tty1`) e `default.target` forçado
+em `multi-user.target`. O `rootfs-failsafe.bootargs` mantém visibilidade no serial desde
+o início (`earlycon=meson,0xc81004c0`, `printk.time=1`, `no_console_suspend`) — sem o
+`initcall_debug`/`keep_bootcon` da fase inicial de diagnóstico, que deixavam o boot
+lentíssimo. Serve para responder: *o kernel chega a montar o rootfs e rodar o init?*
+Se nem isto cair num shell, o problema é kernel/early boot — capture o serial
+(`earlycon` já imprime antes do tty subir).
 
 ## Criar um novo flavor
 

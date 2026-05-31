@@ -19,7 +19,11 @@ FB="$REPO/scripts/firstboot"
 [ -f "$FB/tx9-firstboot.sh" ]      || { echo "apply-flavor: falta $FB/tx9-firstboot.sh"; exit 1; }
 
 # flavor "rootfs-failsafe" (ou qualquer com nofirstboot): se existir <flavor>.nofirstboot,
-# NAO instala o servico de 1o boot e NAO configura rede — sobe so o rootfs base ate um shell.
+# NAO instala o servico de 1o boot e NAO adiciona configuracao de rede (nao cria
+# 20-wired.network nem habilita networkd) — sobe so o rootfs base ate um shell.
+# OBS: o tarball base do ArchLinuxARM ja vem com systemd-networkd habilitado +
+# en.network/eth.network (DHCP), entao a rede ainda sobe; "nofirstboot" so garante
+# que NOS nao adicionamos rede, nao que o sistema fique 100% offline.
 NOFIRSTBOOT=0
 [ -f "$FLAVDIR/$FLAVOR.nofirstboot" ] && NOFIRSTBOOT=1
 
