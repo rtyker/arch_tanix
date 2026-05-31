@@ -11,7 +11,7 @@ BUILD="$ROOT/build"
 IMG="$OUT/arch-tx9.img"
 # DTB do NOSSO kernel (out/dtb/), nunca o do LibreELEC: tem que casar com o kernel.
 DTB="${DTB:-meson-gxm-s912-libretech-pc.dtb}"
-FLAVOR="${FLAVOR:-minimal}"             # minimal | video | lxqt (config/flavors/)
+FLAVOR="${FLAVOR:-minimal}"             # minimal | video | lxqt | rootfs-failsafe (config/flavors/)
 IMG_SIZE_MB="${IMG_SIZE_MB:-4096}"
 BOOT_MB=256
 ROOTFS_TAR="$BUILD/ArchLinuxARM-aarch64-latest.tar.gz"

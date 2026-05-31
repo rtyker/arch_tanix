@@ -1,5 +1,5 @@
 #!/bin/bash
-# Poda a configuracao do kernel para o failsafe enxuto
+# Poda a configuracao do kernel para o ram-failsafe enxuto
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -11,14 +11,18 @@ if [ ! -d "$SRC" ]; then
   exit 1
 fi
 
+OBJ="$ROOT/build/obj-ram"
+mkdir -p "$OBJ"
+
 cd "$SRC"
 
 echo ">> Gerando defconfig limpo"
 export ARCH=arm64
 export CROSS_COMPILE=aarch64-linux-gnu-
-make defconfig
+make O="$OBJ" defconfig
+cp "$OBJ/.config" "$SRC/.config"
 
-echo ">> Podando configuracao do kernel para o failsafe enxuto"
+echo ">> Podando configuracao do kernel para o ram-failsafe enxuto"
 
 # Desativa suporte a modulos de kernel (forca compilacao monolitica)
 ./scripts/config --disable CONFIG_MODULES
@@ -72,6 +76,18 @@ echo ">> Podando configuracao do kernel para o failsafe enxuto"
 # Desativa EFI e EFI Stub
 ./scripts/config --disable CONFIG_EFI
 ./scripts/config --disable CONFIG_EFI_STUB
+
+# Otimiza o kernel para tamanho (compila com -Os)
+./scripts/config --enable CONFIG_CC_OPTIMIZE_FOR_SIZE
+./scripts/config --disable CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
+
+# Desativa BPF e BPF_SYSCALL (que forçam a ativação de CONFIG_KALLSYMS)
+./scripts/config --disable CONFIG_BPF
+./scripts/config --disable CONFIG_BPF_SYSCALL
+./scripts/config --disable CONFIG_BPF_JIT
+
+# Habilita CONFIG_EXPERT para permitir desativar KALLSYMS e outros recursos internos
+./scripts/config --enable CONFIG_EXPERT
 
 # Desativa Kallsyms (economiza muito espaço na imagem binária)
 ./scripts/config --disable CONFIG_KALLSYMS
@@ -134,7 +150,7 @@ enable_builtin CONFIG_KEYBOARD_ATKBD
 
 # Configura Initramfs embarcado
 ./scripts/config --enable CONFIG_BLK_DEV_INITRAMFS
-./scripts/config --set-str CONFIG_INITRAMFS_SOURCE "$ROOT/tiny-failsafe/initramfs-root"
+./scripts/config --set-str CONFIG_INITRAMFS_SOURCE "$ROOT/ram-failsafe/initramfs-root"
 ./scripts/config --enable CONFIG_INITRAMFS_COMPRESSION_LZO
 ./scripts/config --disable CONFIG_INITRAMFS_COMPRESSION_GZIP
 ./scripts/config --disable CONFIG_INITRAMFS_COMPRESSION_BZIP2
@@ -143,7 +159,9 @@ enable_builtin CONFIG_KEYBOARD_ATKBD
 ./scripts/config --disable CONFIG_INITRAMFS_COMPRESSION_LZ4
 ./scripts/config --disable CONFIG_INITRAMFS_COMPRESSION_ZSTD
 
+mv "$SRC/.config" "$OBJ/.config"
+
 echo ">> Ajustando pendencias (make olddefconfig)"
-make olddefconfig
+make O="$OBJ" olddefconfig
 
 echo ">> Kernel configurado com sucesso!"

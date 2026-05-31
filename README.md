@@ -70,14 +70,14 @@ desabilita. Definições em `config/flavors/` (`base.pkgs` é comum a todos):
 
 | Flavor     | O que instala | Gráfico |
 |------------|---------------|---------|
-| `failsafe` | **nada** — só o rootfs base + autologin root no serial/HDMI. Mínimo p/ diagnóstico (sem rede, sem firstboot) | nenhum |
+| `rootfs-failsafe` | **nada** — só o rootfs base + autologin root no serial/HDMI. Mínimo p/ diagnóstico (sem rede, sem firstboot) | nenhum |
 | `minimal`  | só o `base`: curl, nano, vim, sudo, ssh, iwd, … | nenhum |
 | `video`    | base + Mesa/panfrost + **wayfire** (Wayland/GLES2) + greetd | Wayland acelerado |
 | `lxqt`     | base + Xorg + Mesa + **LXQt** + sddm | desktop X11 completo |
 
 ### Ajustes aplicados nos flavors reais (a partir do `minimal`)
 
-`apply-flavor.sh`/`tx9-firstboot` configuram automaticamente (o `failsafe` fica
+`apply-flavor.sh`/`tx9-firstboot` configuram automaticamente (o `rootfs-failsafe` fica
 de fora destes, por ser mínimo):
 
 - **root por PARTUUID** (`root=PARTUUID=54583900-02`) — o kernel resolve sem
@@ -167,9 +167,9 @@ sudo pacman -S --needed fakeroot mtools e2fsprogs parted dosfstools
 > sistema: baixe os pacotes com `pacman -Sp <pkg>` e extraia só `usr/bin/` com
 > `tar`, apontando o `PATH` para a pasta resultante (ver `toolbin/`).
 
-## Failsafe Ultra-Rápido Alternativo (BusyBox em RAM)
+## Failsafe em RAM (BusyBox) — `ram-failsafe`
 
-Para testes rápidos ou diagnóstico de hardware de baixo nível, existe o subprojeto **[Tiny Failsafe](file:///mnt/hdauxiliar/arch_tanix/tiny-failsafe/README.md)** na pasta `tiny-failsafe/`.
+Para testes rápidos ou diagnóstico de hardware de baixo nível, existe o subprojeto **[Ram Failsafe](file:///mnt/hdauxiliar/arch_tanix/ram-failsafe/README.md)** na pasta `ram-failsafe/`.
 
-Ele compila o kernel de forma monolítica com o BusyBox embutido em `initramfs`, gerando um boot de menos de 5 segundos que roda 100% na memória RAM a partir de uma única partição FAT32 de 32MB. Veja os detalhes em [tiny-failsafe/README.md](file:///mnt/hdauxiliar/arch_tanix/tiny-failsafe/README.md).
+Ele compila o kernel de forma monolítica com o BusyBox embutido em `initramfs`, gerando um boot de menos de 5 segundos que roda 100% na memória RAM a partir de uma única partição FAT32 de 32MB. Veja os detalhes em [ram-failsafe/README.md](file:///mnt/hdauxiliar/arch_tanix/ram-failsafe/README.md).
 

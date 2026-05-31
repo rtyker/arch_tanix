@@ -30,15 +30,15 @@ Ao final: `>> imagem pronta: .../out/arch-tx9.img`.
 ### Escolha do flavor (passo 4)
 
 ```bash
-FLAVOR=failsafe ./scripts/04-build-image-rootless.sh  # mínimo p/ diagnóstico: shell root, sem rede
-FLAVOR=minimal  ./scripts/04-build-image-rootless.sh  # só CLI: curl, nano, ssh… (padrão)
-FLAVOR=video    ./scripts/04-build-image-rootless.sh  # Wayland + wayfire (GPU panfrost)
-FLAVOR=lxqt     ./scripts/04-build-image-rootless.sh  # desktop X11 LXQt completo
+FLAVOR=rootfs-failsafe ./scripts/04-build-image-rootless.sh  # mínimo p/ diagnóstico: shell root, sem rede
+FLAVOR=minimal         ./scripts/04-build-image-rootless.sh  # só CLI: curl, nano, ssh… (padrão)
+FLAVOR=video           ./scripts/04-build-image-rootless.sh  # Wayland + wayfire (GPU panfrost)
+FLAVOR=lxqt            ./scripts/04-build-image-rootless.sh  # desktop X11 LXQt completo
 ```
 
 Os flavors reais (`minimal`/`video`/`lxqt`) já vêm com locale `pt_BR.UTF-8`, fonte
 de console maior, NTP do Brasil, SSH root habilitado e **auto-expansão do root**
-(ocupa todo o cartão no 1º boot). O `failsafe` é o mínimo absoluto (sem rede/firstboot).
+(ocupa todo o cartão no 1º boot). O `rootfs-failsafe` é o mínimo absoluto (sem rede/firstboot).
 
 Definições em `config/flavors/`. Variáveis opcionais:
 - `DTB=meson-gxm-s912-libretech-pc.dtb`  dtb alternativo
@@ -123,27 +123,32 @@ Este repositório está estruturado em dois fluxos de build independentes:
 ### Funcionalidade 2: BusyBox Failsafe Mínimo (Rodando 100% em RAM)
 *   **Objetivo**: Subir um shell BusyBox mínimo para diagnóstico e testes rápidos de baixo nível (HDMI e serial) sem depender de rede, partições ext4 ou escrita no eMMC/Android interno. Dá boot em menos de 5 segundos rodando totalmente na RAM.
 *   **Procedimento**:
-    1.  Compilar Busybox e preparar initramfs: `./tiny-failsafe/build-busybox.sh`
-    2.  Configurar e podar o kernel: `./tiny-failsafe/prune-config.sh` (obrigatório para diminuir o tamanho!)
-    3.  Compilar o kernel: `./tiny-failsafe/build-kernel.sh`
-    4.  Gerar o uImage KERNEL: `./tiny-failsafe/package-kernel.sh`
-    5.  Gerar a imagem FAT32: `./tiny-failsafe/build-image.sh`
-    6.  Gravar no cartão: `sudo dd if=tiny-failsafe/out/tiny-failsafe.img of=/dev/sdX bs=4M conv=fsync status=progress`
-*   Mais detalhes e customizações em [tiny-failsafe/README.md](file:///mnt/hdauxiliar/arch_tanix/tiny-failsafe/README.md).
+    1.  Compilar Busybox e preparar initramfs: `./ram-failsafe/build-busybox.sh`
+    2.  Configurar e podar o kernel: `./ram-failsafe/prune-config.sh` (obrigatório para diminuir o tamanho!)
+    3.  Compilar o kernel: `./ram-failsafe/build-kernel.sh`
+    4.  Gerar o uImage KERNEL: `./ram-failsafe/package-kernel.sh`
+    5.  Gerar a imagem FAT32: `./ram-failsafe/build-image.sh`
+    6.  Gravar no cartão: `sudo dd if=ram-failsafe/out/ram-failsafe.img of=/dev/sdX bs=4M conv=fsync status=progress`
+*   Mais detalhes e customizações em [ram-failsafe/README.md](file:///mnt/hdauxiliar/arch_tanix/ram-failsafe/README.md).
 
 ---
 
-## 6. Solução de Problemas: Erro LZO uncompress ou overwrite error (Bootloop)
+## 6. Empacotamento do uImage: sem compressão + `LOAD=0x03000000`
 
-Se a console serial mostrar a seguinte mensagem de erro no bootloader U-Boot e reiniciar em loop:
-`Uncompressing Kernel Image ... LZO: uncompress or overwrite error -6 (ou -8) - must RESET board to recover`
+Ambos os pipelines (`scripts/02-package-kernel.sh` do rootfs e `ram-failsafe/package-kernel.sh`)
+empacotam o `Image` como uImage **sem compressão** (`mkimage -C none`) com `LOAD=ENTRY=0x03000000`.
+O U-Boot de fábrica lê o `KERNEL` em `0x01080000` (`loadaddr`) e, como não há compressão, apenas
+**copia** o payload para `0x03000000` — sem etapa de descompressão. A única regra é que as faixas
+de origem e destino **não se sobreponham** (com kernel ~19,4 MB elas ficam bem separadas).
 
-Isso ocorre devido a uma **sobreposição de memória (overlap)**:
-*   O arquivo `KERNEL` é carregado pelo U-Boot em `0x01080000`.
-*   A descompressão do kernel ocorre para `LOAD=0x02000000` (32MB).
-*   Se o `KERNEL` comprimido for maior que **15.5 MB**, ele vai ocupar a RAM até passar do endereço `0x02000000`. Durante o boot, a descompressão sobrescreverá os dados que ainda não foram descompactados, quebrando a stream LZO.
+**Histórico (erro LZO — não ocorre mais):** versões antigas usavam `-C lzo` com `LOAD=0x02000000`.
+Quando o kernel comprimido passava de ~15,5 MB, a área de descompressão (`0x02000000`) invadia o
+container ainda não lido em `0x01080000`, corrompendo a stream LZO e gerando bootloop
+(`LZO: uncompress or overwrite error -6/-8`). A troca para `-C none` + `0x03000000` eliminou essa
+classe de erro.
 
-**Como evitar:**
-*   Para o **BusyBox (failsafe)**: Você **deve** rodar `./tiny-failsafe/prune-config.sh` antes de compilar para remover drivers SoCs e subsistemas extras (isso encolhe o kernel de ~20MB para ~11.6MB).
-*   Para o **Arch Linux**: Se o kernel crescer e ultrapassar 15.5MB comprimido, aumente o `LOAD` para `0x03000000` em `scripts/02-package-kernel.sh` (e em `tiny-failsafe/package-kernel.sh` se necessário).
+**Se o kernel crescer demais:** rode sempre `./ram-failsafe/prune-config.sh` antes de compilar o
+failsafe em RAM (remove drivers de outros SoCs/subsistemas, mantendo o `Image` enxuto). Se ainda
+assim ficar grande, suba o `LOAD` (ex.: `0x04000000`) — endereço alinhado em 2 MB, dentro da RAM e
+sem sobrepor a faixa carregada em `0x01080000`.
 

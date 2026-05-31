@@ -18,8 +18,8 @@ FB="$REPO/scripts/firstboot"
 [ -f "$FLAVDIR/$FLAVOR.pkgs" ]     || { echo "apply-flavor: flavor desconhecido '$FLAVOR' (sem $FLAVOR.pkgs)"; exit 1; }
 [ -f "$FB/tx9-firstboot.sh" ]      || { echo "apply-flavor: falta $FB/tx9-firstboot.sh"; exit 1; }
 
-# flavor "failsafe": se existir <flavor>.nofirstboot, NAO instala o servico de
-# 1o boot e NAO configura rede — sobe so o rootfs base ate um shell.
+# flavor "rootfs-failsafe" (ou qualquer com nofirstboot): se existir <flavor>.nofirstboot,
+# NAO instala o servico de 1o boot e NAO configura rede — sobe so o rootfs base ate um shell.
 NOFIRSTBOOT=0
 [ -f "$FLAVDIR/$FLAVOR.nofirstboot" ] && NOFIRSTBOOT=1
 
@@ -48,7 +48,7 @@ echo "$FLAVOR" > "$ROOTDIR/etc/tx9/flavor.name"
 [ -f "$FLAVDIR/$FLAVOR.target" ]  && cp "$FLAVDIR/$FLAVOR.target" "$ROOTDIR/etc/tx9/flavor.target"
 
 # ---------------------------------------------------------------------------
-# 2. servico de primeiro boot (pulado no failsafe/nofirstboot)
+# 2. servico de primeiro boot (pulado no rootfs-failsafe/nofirstboot)
 # ---------------------------------------------------------------------------
 if [ "$NOFIRSTBOOT" = 1 ]; then
   echo "   nofirstboot: pulando instalacao do tx9-firstboot.service"
@@ -104,11 +104,11 @@ fi
 # ---------------------------------------------------------------------------
 # 4. rede para o 1o boot: systemd-networkd + resolved (DHCP cabeado, 0 pacotes)
 #    (sao parte do systemd, ja presentes no rootfs base)
-#    Pulado no failsafe/nofirstboot: o failsafe nao precisa de rede.
+#    Pulado no rootfs-failsafe/nofirstboot: o failsafe nao precisa de rede.
 # ---------------------------------------------------------------------------
 if [ "$NOFIRSTBOOT" = 1 ]; then
   echo "   nofirstboot: pulando configuracao de rede"
-  echo ">> flavor '$FLAVOR' aplicado (failsafe: sem rede, autologin no shell)"
+  echo ">> flavor '$FLAVOR' aplicado (nofirstboot: sem rede, autologin no shell)"
 else
   mkdir -p "$ROOTDIR/etc/systemd/network"
   cat > "$ROOTDIR/etc/systemd/network/20-wired.network" <<'EOF'
@@ -137,7 +137,7 @@ EOF
 fi
 
 # ---------------------------------------------------------------------------
-# 5. ajustes de sistema dos flavors reais (a partir do minimal; NAO no failsafe):
+# 5. ajustes de sistema dos flavors reais (a partir do minimal; NAO no rootfs-failsafe):
 #    auto-expansao do root, locale pt_BR.UTF-8, fonte de console maior e NTP.br.
 # ---------------------------------------------------------------------------
 if [ "$NOFIRSTBOOT" != 1 ]; then

@@ -18,7 +18,7 @@ IMG="$OUT/arch-tx9.img"
 # meson-gxm-s912-libretech-pc e o modelo que o box aceita (o proprio LibreELEC
 # boota com ele). NAO usar tx9-pro: nao existe no kernel mainline 6.12.
 DTB="${DTB:-meson-gxm-s912-libretech-pc.dtb}"
-FLAVOR="${FLAVOR:-minimal}"             # minimal | video | lxqt (config/flavors/)
+FLAVOR="${FLAVOR:-minimal}"             # minimal | video | lxqt | rootfs-failsafe (config/flavors/)
 IMG_SIZE_MB="${IMG_SIZE_MB:-4096}"
 BOOT_MB=256
 ROOTFS_TAR="$BUILD/ArchLinuxARM-aarch64-latest.tar.gz"
@@ -54,7 +54,7 @@ mmd   -i "$BOOTIMG" ::dtb
 mcopy -i "$BOOTIMG" "$OUT/dtb/$DTB" "::dtb/$DTB"
 
 # bootargs base + extras opcionais do flavor (config/flavors/<flavor>.bootargs).
-# O failsafe usa isso para ligar earlycon/initcall_debug/ignore_loglevel etc.
+# O rootfs-failsafe usa isso para ligar earlycon/initcall_debug/ignore_loglevel etc.
 # root por PARTUUID (MBR): o kernel resolve nativamente, SEM initramfs e SEM
 # depender da ordem de enumeracao (sda/sdb). Para MBR o PARTUUID e
 # "<disk-id 8 hex>-<NN da particao>". Fixamos o disk-id (DISKID) no MBR via

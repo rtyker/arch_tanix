@@ -3,15 +3,15 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-TINY_DIR="$ROOT/tiny-failsafe"
+RAM_DIR="$ROOT/ram-failsafe"
 BUILD="$ROOT/build"
 BUSYBOX_VER="1.36.1"
 BUSYBOX_DIR="$BUILD/busybox-$BUSYBOX_VER"
-INITRAMFS="$TINY_DIR/initramfs-root"
+INITRAMFS="$RAM_DIR/initramfs-root"
 
 KVER="${KVER:-6.12.91}"
 
-mkdir -p "$BUILD" "$TINY_DIR/out"
+mkdir -p "$BUILD" "$RAM_DIR/out"
 
 # 1. Baixar BusyBox
 if [ ! -f "$BUILD/busybox-$BUSYBOX_VER.tar.bz2" ]; then

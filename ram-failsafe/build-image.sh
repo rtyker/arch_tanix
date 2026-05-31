@@ -3,10 +3,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-TINY_DIR="$ROOT/tiny-failsafe"
-OUT="$TINY_DIR/out"
+RAM_DIR="$ROOT/ram-failsafe"
+OUT="$RAM_DIR/out"
 BOOT="$ROOT/boot"
-IMG="$OUT/tiny-failsafe.img"
+IMG="$OUT/ram-failsafe.img"
 DTB="${DTB:-meson-gxm-s912-libretech-pc.dtb}"
 
 # Verifica dependencias
@@ -29,7 +29,7 @@ IMG_SIZE_MB=$((BOOT_MB + 1))
 
 echo ">> Criando particao FAT (${BOOT_MB}MB) e populando..."
 truncate -s "${BOOT_MB}M" "$BOOTIMG"
-mkfs.vfat -n TX9TINY "$BOOTIMG" >/dev/null
+mkfs.vfat -n TX9RAM "$BOOTIMG" >/dev/null
 
 export MTOOLS_SKIP_CHECK=1
 mcopy -i "$BOOTIMG" "$OUT/KERNEL" ::KERNEL
