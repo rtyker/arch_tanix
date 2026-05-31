@@ -66,3 +66,25 @@ O bootloader U-Boot de fábrica se comunica a **115200** baud rate. Para monitor
 picocom -b 115200 /dev/ttyUSB0
 ```
 *(Nota: Certifique-se de que não há outros processos competindo pela leitura da `/dev/ttyUSB0` para evitar caracteres corrompidos).*
+
+---
+
+## Solução de Problemas: Bootloop no Serial (Erro LZO -6 / -8)
+
+Se você compilar o projeto e a console serial mostrar um bootloop infinito com a mensagem:
+`Uncompressing Kernel Image ... LZO: uncompress or overwrite error -6 (ou -8) - must RESET board to recover`
+
+### Causa Real do Problema
+O U-Boot de fábrica carrega o arquivo `KERNEL` comprimido na memória RAM em `0x01080000` (`loadaddr`). A descompressão do kernel ocorre para a área definida em `LOAD=0x02000000` (32MB).
+*   Se o tamanho do kernel comprimido exceder **15.5 MB** (`16252864` bytes), a parte final do container carregado na RAM irá além do endereço `0x02000000`.
+*   Durante a descompressão, o U-Boot começará a descompactar e escrever dados em `0x02000000`, **sobrescrevendo os próprios dados comprimidos** que ele ainda não leu!
+*   Isso corrompe o fluxo LZO, resultando em falhas de descompressão (`error -6` ou `error -8`) e forçando o reinício (bootloop).
+
+### Como Resolver
+1.  **Não esqueça de rodar o `prune-config.sh`**:
+    O kernel padrão (configuração principal) é grande demais. Para o `tiny-failsafe`, você **deve** rodar `./tiny-failsafe/prune-config.sh` antes de `./tiny-failsafe/build-kernel.sh` para desabilitar drivers desnecessários e reduzir o tamanho final da imagem.
+2.  **Verifique os Avisos do Build**:
+    O script `package-kernel.sh` agora possui uma validação de segurança. Se o tamanho for crítico, ele emitirá um aviso bem visível no terminal.
+3.  **Ajuste o LOAD Address (Se necessário)**:
+    Se você realmente precisar de um kernel maior para o failsafe, altere a variável `LOAD` em `tiny-failsafe/package-kernel.sh` de `0x02000000` para `0x03000000` (ou outro endereço alinhado em 2MB e seguro na faixa de RAM acessível).
+

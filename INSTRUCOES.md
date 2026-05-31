@@ -108,3 +108,42 @@ ls /dev/dri                      # GPU (panfrost) presente?
 ```
 
 Sem o cartão, o box volta ao Android normalmente.
+
+---
+
+## 5. Duas Funcionalidades do Projeto
+
+Este repositório está estruturado em dois fluxos de build independentes:
+
+### Funcionalidade 1: Arch Linux ARM Completo (Múltiplos Flavors)
+*   **Objetivo**: Rodar um sistema operacional completo (CLI minimalista ou desktop gráfico com aceleramento 3D) a partir de um cartão SD/USB com partição ext4 (`rootfs`).
+*   **Procedimento**: Seguir os passos **1 a 4** explicados no início deste documento.
+*   **Ajustes de flavors**: As definições e pacotes ficam em `config/flavors/`.
+
+### Funcionalidade 2: BusyBox Failsafe Mínimo (Rodando 100% em RAM)
+*   **Objetivo**: Subir um shell BusyBox mínimo para diagnóstico e testes rápidos de baixo nível (HDMI e serial) sem depender de rede, partições ext4 ou escrita no eMMC/Android interno. Dá boot em menos de 5 segundos rodando totalmente na RAM.
+*   **Procedimento**:
+    1.  Compilar Busybox e preparar initramfs: `./tiny-failsafe/build-busybox.sh`
+    2.  Configurar e podar o kernel: `./tiny-failsafe/prune-config.sh` (obrigatório para diminuir o tamanho!)
+    3.  Compilar o kernel: `./tiny-failsafe/build-kernel.sh`
+    4.  Gerar o uImage KERNEL: `./tiny-failsafe/package-kernel.sh`
+    5.  Gerar a imagem FAT32: `./tiny-failsafe/build-image.sh`
+    6.  Gravar no cartão: `sudo dd if=tiny-failsafe/out/tiny-failsafe.img of=/dev/sdX bs=4M conv=fsync status=progress`
+*   Mais detalhes e customizações em [tiny-failsafe/README.md](file:///mnt/hdauxiliar/arch_tanix/tiny-failsafe/README.md).
+
+---
+
+## 6. Solução de Problemas: Erro LZO uncompress ou overwrite error (Bootloop)
+
+Se a console serial mostrar a seguinte mensagem de erro no bootloader U-Boot e reiniciar em loop:
+`Uncompressing Kernel Image ... LZO: uncompress or overwrite error -6 (ou -8) - must RESET board to recover`
+
+Isso ocorre devido a uma **sobreposição de memória (overlap)**:
+*   O arquivo `KERNEL` é carregado pelo U-Boot em `0x01080000`.
+*   A descompressão do kernel ocorre para `LOAD=0x02000000` (32MB).
+*   Se o `KERNEL` comprimido for maior que **15.5 MB**, ele vai ocupar a RAM até passar do endereço `0x02000000`. Durante o boot, a descompressão sobrescreverá os dados que ainda não foram descompactados, quebrando a stream LZO.
+
+**Como evitar:**
+*   Para o **BusyBox (failsafe)**: Você **deve** rodar `./tiny-failsafe/prune-config.sh` antes de compilar para remover drivers SoCs e subsistemas extras (isso encolhe o kernel de ~20MB para ~11.6MB).
+*   Para o **Arch Linux**: Se o kernel crescer e ultrapassar 15.5MB comprimido, aumente o `LOAD` para `0x03000000` em `scripts/02-package-kernel.sh` (e em `tiny-failsafe/package-kernel.sh` se necessário).
+

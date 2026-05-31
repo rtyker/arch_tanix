@@ -1,8 +1,11 @@
 # Arch Linux para Tanix TX9 (Amlogic S912 / meson-gxm)
 
-Arch Linux ARM aarch64 simples para o box Tanix TX9 Pro, inspirado no esquema de
-boot Amlogic-ng do LibreELEC/CoreELEC. Boota de **cartão SD/USB** via método
-toothpick, **sem tocar no eMMC/Android** interno.
+Este projeto possui **duas funcionalidades principais** para a box Tanix TX9 Pro (boot via cartão SD/USB por toothpick, sem tocar no eMMC/Android interno):
+
+1. **Build de um sistema completo Arch Linux ARM (aarch64)** com suporte a múltiplos "flavors" (incluindo ambientes gráficos acelerados e CLI minimalista) rodando em uma partição `rootfs` ext4.
+2. **Build de um ambiente de recuperação "failsafe" super básico (BusyBox)** rodando 100% em memória RAM (via initramfs embutido no kernel) sob uma única partição FAT32 de 32MB.
+
+---
 
 ## Hardware alvo (confirmado no box de referência)
 
